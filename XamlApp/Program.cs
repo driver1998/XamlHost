@@ -90,15 +90,18 @@ static class Program
         var hr = PrivateCreateCoreWindow(CoreWindowType.IMMERSIVE_HOSTED, "", 0, 0, 0, 0, 0, hwnd.Value, typeof(ICoreWindow).GUID, out var _);
         ExceptionHelpers.ThrowExceptionForHR(hr);
 
+        var coreApplicationView = CoreApplication.As<ICoreApplicationPrivate2>().CreateNonImmersiveView();
+
         coreWindow = CoreWindow.GetForCurrentThread();
-        var view = new XamlApplicationView();
+        //var view = new XamlApplicationView();
         frameworkView = new FrameworkView();
-        frameworkView.As<IFrameworkViewModified>().Initialize(view);
+        frameworkView.Initialize(coreApplicationView);
         frameworkView.SetWindow(coreWindow);
 
         var hwndCoreWindow = new HWND(coreWindow.As<ICoreWindowInterop>().WindowHandle);
         SetParent(hwndCoreWindow, hwnd);
         SetWindowLongPtr(hwndCoreWindow, WINDOW_LONG_PTR_INDEX.GWL_STYLE, (nint)(WS_CHILD | WS_VISIBLE));
+        SetFocus(hwndCoreWindow);
 
         return new LRESULT(0);
     }
@@ -107,7 +110,7 @@ static class Program
         if (coreWindow != null)
         {
             var hwndCoreWindow = new HWND(coreWindow.As<ICoreWindowInterop>().WindowHandle);
-            SetWindowPos(hwndCoreWindow, HWND.Null, 0, 0, clientHeight, clientWidth, SWP_NOMOVE | SWP_NOZORDER);
+            SetWindowPos(hwndCoreWindow, HWND.Null, 0, 0, clientWidth, clientHeight, SWP_NOMOVE | SWP_NOZORDER);
         }
         return new LRESULT(0);
     }
@@ -139,7 +142,7 @@ static class Program
     
     public unsafe static void Main(string[] args)
     {
-        _ = new App();
+        var app = new App();
 
         var hInstance = GetModuleHandle((PCWSTR)null);
         char* className = stackalloc char[] { 'X', 'a', 'm', 'l', 'W', 'n', 'd', (char)0 };
@@ -169,7 +172,7 @@ static class Program
 
         ShowWindow(hwnd, SHOW_WINDOW_CMD.SW_NORMAL);
 
-
+        var navigationView = new NavigationView();
         var textBlock = new TextBlock
         {
             Text = "Hello world"
@@ -183,12 +186,33 @@ static class Program
             Minimum = 0,
             Maximum = 100
         };
+        var btn = new Button { Content = "Click Me" };
+        btn.Click += (s, e) =>
+        {
+            var dialog = new ContentDialog
+            {
+                Content = new StackPanel
+                {
+                    Children =
+                    {
+                        new TextBlock {Text = "ContentDialog test"},
+                        new TextBox(),
+                        new Slider { Minimum = 0, Maximum = 100}
+                    }
+                },
+                PrimaryButtonText = "OK"
+            };
+            _ = dialog.ShowAsync();
+        };
         stackPanel.Children.Add(textBlock);
         stackPanel.Children.Add(slider);
         stackPanel.Children.Add(new TextBox());
-        stackPanel.Children.Add(new Button { Content = "Button" });
+        stackPanel.Children.Add(btn);
         stackPanel.Children.Add(new CalendarDatePicker());
-        Window.Current.Content = stackPanel;
+        navigationView.Content = stackPanel;
+        Window.Current.Content = navigationView;
+
+        
 
         frameworkView?.Run();
     }

@@ -18,4 +18,12 @@ namespace XamlApp
         void Run();
         void Uninitialize();
     }
+
+    [uuid("6090202d-2843-4ba5-9b0d-fc88eecd9ce5")]
+    interface ICoreApplicationPrivate2
+    {
+        void InitializeForAttach();
+        Windows.UI.Core.CoreWindow WaitForActivate();
+        Windows.ApplicationModel.Core.CoreApplicationView CreateNonImmersiveView();
+    }
 }

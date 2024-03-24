@@ -10,6 +10,7 @@ DefWindowProc
 PostQuitMessage
 SetWindowLongPtr
 SetParent
+SetFocus
 
 SYS_COLOR_INDEX
 CW_USEDEFAULT
