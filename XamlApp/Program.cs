@@ -1,21 +1,19 @@
 ﻿using System.Runtime.InteropServices;
-using Windows.Win32.Foundation;
-using Windows.Win32.Graphics.Gdi;
-using Windows.Win32.UI.WindowsAndMessaging;
-using Windows.Win32.System.WinRT;
-
-using static Windows.Win32.PInvoke;
-using static Windows.Win32.UI.WindowsAndMessaging.WINDOW_STYLE;
-using static Windows.Win32.Graphics.Gdi.SYS_COLOR_INDEX;
-using static Windows.Win32.UI.WindowsAndMessaging.SET_WINDOW_POS_FLAGS;
-
-using static XamlApp.NativeMethods;
+using Windows.ApplicationModel.Activation;
+using Windows.ApplicationModel.Core;
+using Windows.Foundation;
 using Windows.UI.Core;
 using Windows.UI.Xaml;
+using Windows.Win32.Foundation;
+using Windows.Win32.Graphics.Gdi;
+using Windows.Win32.System.WinRT;
+using Windows.Win32.UI.WindowsAndMessaging;
 using WinRT;
-using XamlApp.Windows.ApplicationModel.Core;
-using Windows.Foundation;
-using Windows.ApplicationModel.Activation;
+using static Windows.Win32.Graphics.Gdi.SYS_COLOR_INDEX;
+using static Windows.Win32.PInvoke;
+using static Windows.Win32.UI.WindowsAndMessaging.SET_WINDOW_POS_FLAGS;
+using static Windows.Win32.UI.WindowsAndMessaging.WINDOW_STYLE;
+using static XamlApp.NativeMethods;
 
 namespace XamlApp;
 
@@ -35,11 +33,11 @@ static partial class NativeMethods
     [LibraryImport("windows.ui.dll", EntryPoint = "#1500", StringMarshalling = StringMarshalling.Utf16)]
     public static partial int PrivateCreateCoreWindow(CoreWindowType windowType, string windowTitle,
         int x, int y, uint width, uint height,
-        uint dwAttributes, nint hOwnerWindow, ref Guid riid, out nint pWindow);
+        uint dwAttributes, nint hOwnerWindow, in Guid riid, out nint pWindow);
 }
 
-
-public partial class XamlApplicationView : ICoreApplicationView
+public class App : Application {}
+public class XamlApplicationView : ICoreApplicationView
 {
     public CoreWindow CoreWindow => CoreWindow.GetForCurrentThread();
 
@@ -47,29 +45,22 @@ public partial class XamlApplicationView : ICoreApplicationView
 
     public bool IsMain => true;
 
-    public event TypedEventHandler<ICoreApplicationView, IActivatedEventArgs>? Activated;
+    public event TypedEventHandler<CoreApplicationView, IActivatedEventArgs>? Activated;
 }
+
 static class Program
 {
     private static CoreWindow? coreWindow;
     private static FrameworkView? frameworkView;
-    private static XamlApplicationView? view;
     public static LRESULT OnCreate(HWND hwnd, CREATESTRUCTW cs)
     {
-        var guidCoreWindow = typeof(ICoreWindow).GUID;
-        var hwndValue = hwnd.Value;
-        var hr = PrivateCreateCoreWindow(CoreWindowType.IMMERSIVE_HOSTED, "", 0, 0, 0, 0, 0, hwnd.Value, ref guidCoreWindow, out var _);
+        var hr = PrivateCreateCoreWindow(CoreWindowType.IMMERSIVE_HOSTED, "", 0, 0, 0, 0, 0, hwnd.Value, typeof(ICoreWindow).GUID, out var _);
         ExceptionHelpers.ThrowExceptionForHR(hr);
 
         coreWindow = CoreWindow.GetForCurrentThread();
-        view = new XamlApplicationView();
+        var view = new XamlApplicationView();
         frameworkView = new FrameworkView();
-        //var mf = frameworkView.As<IFrameworkView>();
-        view.Activated += (s, e) =>
-        {
-            Console.WriteLine("aaa");
-        };
-        frameworkView.As<IFrameworkView>().Initialize(view);
+        frameworkView.As<IFrameworkViewModified>().Initialize(view);
         frameworkView.SetWindow(coreWindow);
 
         var hwndCoreWindow = new HWND(coreWindow.As<ICoreWindowInterop>().WindowHandle);
@@ -115,8 +106,10 @@ static class Program
     
     public unsafe static void Main(string[] args)
     {
+        _ = new Application();
+
         var hInstance = GetModuleHandle((PCWSTR)null);
-        char* className = stackalloc char[] { 'X', 'a', 'm', 'l', 'W', 'n', 'd' };
+        char* className = stackalloc char[] { 'X', 'a', 'm', 'l', 'W', 'n', 'd', (char)0 };
         var wndClass = new WNDCLASSEXW
         {
             cbSize = (uint)Marshal.SizeOf<WNDCLASSEXW>(),
@@ -143,17 +136,6 @@ static class Program
 
         ShowWindow(hwnd, SHOW_WINDOW_CMD.SW_NORMAL);
 
-        BOOL ret;
-        while ((ret = GetMessage(out var msg, HWND.Null, 0, 0)) != 0)
-        {
-            if (ret != -1)
-            {
-                TranslateMessage(msg);
-                DispatchMessage(msg);
-            }
-        }
-
         frameworkView?.Run();
-        
     }
 }

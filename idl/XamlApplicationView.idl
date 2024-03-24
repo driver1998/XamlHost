@@ -1,18 +1,18 @@
-namespace XamlApp.Windows.ApplicationModel.Core
+namespace XamlApp
 {
     [uuid("638BB2DB-451D-4661-B099-414F34FFB9F1")]   
     interface ICoreApplicationView
     {
         Windows.UI.Core.CoreWindow CoreWindow { get; };
-        event Windows.Foundation.TypedEventHandler<XamlApp.Windows.ApplicationModel.Core.ICoreApplicationView, Windows.ApplicationModel.Activation.IActivatedEventArgs> Activated;
+        event Windows.Foundation.TypedEventHandler<Windows.ApplicationModel.Core.CoreApplicationView, Windows.ApplicationModel.Activation.IActivatedEventArgs> Activated;
         Boolean IsMain { get; };
         Boolean IsHosted { get; };
     }
 
     [uuid("FAAB5CD0-8924-45AC-AD0F-A08FAE5D0324")]
-    interface IFrameworkView
+    interface IFrameworkViewModified
     {
-        void Initialize(XamlApp.Windows.ApplicationModel.Core.ICoreApplicationView applicationView);
+        void Initialize(XamlApp.ICoreApplicationView applicationView);
         void SetWindow(Windows.UI.Core.CoreWindow window);
         void Load(String entryPoint);
         void Run();

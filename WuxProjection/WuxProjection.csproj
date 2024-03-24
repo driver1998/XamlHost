@@ -17,7 +17,7 @@
 			-exclude Windows.UI.Text.FontStyle
 			-exclude Windows.UI.Text.FontWeight
 			-exclude Windows.UI.Text.UnderlineType
-			-include XamlApp.Windows.ApplicationModel.Core
+			-include XamlApp
 		</CsWinRTFilters>
 	</PropertyGroup>
 
