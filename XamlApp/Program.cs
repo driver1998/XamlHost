@@ -1,9 +1,14 @@
-﻿using System.Runtime.InteropServices;
+﻿using System;
+using System.Collections.Generic;
+using System.Runtime.InteropServices;
+using System.Linq;
 using Windows.ApplicationModel.Activation;
 using Windows.ApplicationModel.Core;
 using Windows.Foundation;
 using Windows.UI.Core;
 using Windows.UI.Xaml;
+using Windows.UI.Xaml.Controls;
+using Windows.UI.Xaml.Markup;
 using Windows.Win32.Foundation;
 using Windows.Win32.Graphics.Gdi;
 using Windows.Win32.System.WinRT;
@@ -36,7 +41,35 @@ static partial class NativeMethods
         uint dwAttributes, nint hOwnerWindow, in Guid riid, out nint pWindow);
 }
 
-public class App : Application {}
+public class App : Application, IXamlMetadataProvider
+{
+    public IXamlType? GetXamlType(Type type)
+    {
+        foreach (var provider in _providers)
+        {
+            var xamlType = provider.GetXamlType(type);
+            if (xamlType != null) return xamlType;
+        }
+        return null;
+    }
+
+    public IXamlType? GetXamlType(string fullName)
+    {
+        foreach (var provider in _providers)
+        {
+            var xamlType = provider.GetXamlType(fullName);
+            if (xamlType != null) return xamlType;
+        }
+        return null;
+    }
+
+    public XmlnsDefinition[] GetXmlnsDefinitions()
+    {
+        return _providers.SelectMany(p => p.GetXmlnsDefinitions()).ToArray();
+    }
+
+    private List<IXamlMetadataProvider> _providers = new();
+}
 public class XamlApplicationView : ICoreApplicationView
 {
     public CoreWindow CoreWindow => CoreWindow.GetForCurrentThread();
@@ -106,7 +139,7 @@ static class Program
     
     public unsafe static void Main(string[] args)
     {
-        _ = new Application();
+        _ = new App();
 
         var hInstance = GetModuleHandle((PCWSTR)null);
         char* className = stackalloc char[] { 'X', 'a', 'm', 'l', 'W', 'n', 'd', (char)0 };
@@ -135,6 +168,27 @@ static class Program
         }
 
         ShowWindow(hwnd, SHOW_WINDOW_CMD.SW_NORMAL);
+
+
+        var textBlock = new TextBlock
+        {
+            Text = "Hello world"
+        };
+        var stackPanel = new StackPanel
+        {
+            Orientation = Orientation.Vertical
+        };
+        var slider = new Slider
+        {
+            Minimum = 0,
+            Maximum = 100
+        };
+        stackPanel.Children.Add(textBlock);
+        stackPanel.Children.Add(slider);
+        stackPanel.Children.Add(new TextBox());
+        stackPanel.Children.Add(new Button { Content = "Button" });
+        stackPanel.Children.Add(new CalendarDatePicker());
+        Window.Current.Content = stackPanel;
 
         frameworkView?.Run();
     }
