@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "XamlApp": {
+      "commandName": "Project",
+      "nativeDebugging": true
+    }
+  }
+}

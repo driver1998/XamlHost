@@ -1,0 +1,38 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "XamlApp", "XamlApp\XamlApp.csproj", "{5035A43C-D3D2-4C66-B9B6-1863A4C48EF8}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "WuxProjection", "WuxProjection\WuxProjection.csproj", "{F9B4FF01-F3E1-48F2-9908-F730F5815F0A}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Debug|ARM64 = Debug|ARM64
+		Release|Any CPU = Release|Any CPU
+		Release|ARM64 = Release|ARM64
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{5035A43C-D3D2-4C66-B9B6-1863A4C48EF8}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{5035A43C-D3D2-4C66-B9B6-1863A4C48EF8}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{5035A43C-D3D2-4C66-B9B6-1863A4C48EF8}.Debug|ARM64.ActiveCfg = Debug|ARM64
+		{5035A43C-D3D2-4C66-B9B6-1863A4C48EF8}.Debug|ARM64.Build.0 = Debug|ARM64
+		{5035A43C-D3D2-4C66-B9B6-1863A4C48EF8}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{5035A43C-D3D2-4C66-B9B6-1863A4C48EF8}.Release|Any CPU.Build.0 = Release|Any CPU
+		{5035A43C-D3D2-4C66-B9B6-1863A4C48EF8}.Release|ARM64.ActiveCfg = Release|ARM64
+		{5035A43C-D3D2-4C66-B9B6-1863A4C48EF8}.Release|ARM64.Build.0 = Release|ARM64
+		{F9B4FF01-F3E1-48F2-9908-F730F5815F0A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{F9B4FF01-F3E1-48F2-9908-F730F5815F0A}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{F9B4FF01-F3E1-48F2-9908-F730F5815F0A}.Debug|ARM64.ActiveCfg = Debug|ARM64
+		{F9B4FF01-F3E1-48F2-9908-F730F5815F0A}.Debug|ARM64.Build.0 = Debug|ARM64
+		{F9B4FF01-F3E1-48F2-9908-F730F5815F0A}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{F9B4FF01-F3E1-48F2-9908-F730F5815F0A}.Release|Any CPU.Build.0 = Release|Any CPU
+		{F9B4FF01-F3E1-48F2-9908-F730F5815F0A}.Release|ARM64.ActiveCfg = Release|ARM64
+		{F9B4FF01-F3E1-48F2-9908-F730F5815F0A}.Release|ARM64.Build.0 = Release|ARM64
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+EndGlobal
