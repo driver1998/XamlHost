@@ -70,16 +70,6 @@ public class App : Application, IXamlMetadataProvider
 
     private List<IXamlMetadataProvider> _providers = new();
 }
-public class XamlApplicationView : ICoreApplicationView
-{
-    public CoreWindow CoreWindow => CoreWindow.GetForCurrentThread();
-
-    public bool IsHosted => false;
-
-    public bool IsMain => true;
-
-    public event TypedEventHandler<CoreApplicationView, IActivatedEventArgs>? Activated;
-}
 
 static class Program
 {
@@ -87,21 +77,19 @@ static class Program
     private static FrameworkView? frameworkView;
     public static LRESULT OnCreate(HWND hwnd, CREATESTRUCTW cs)
     {
-        var hr = PrivateCreateCoreWindow(CoreWindowType.IMMERSIVE_HOSTED, "", 0, 0, 0, 0, 0, hwnd.Value, typeof(ICoreWindow).GUID, out var _);
+        var hr = PrivateCreateCoreWindow(CoreWindowType.IMMERSIVE_HOSTED, "", 0, 0, 0, 0, 0, hwnd.Value, typeof(ICoreWindow).GUID, out _);
         ExceptionHelpers.ThrowExceptionForHR(hr);
 
         var coreApplicationView = CoreApplication.As<ICoreApplicationPrivate2>().CreateNonImmersiveView();
 
         coreWindow = CoreWindow.GetForCurrentThread();
-        //var view = new XamlApplicationView();
         frameworkView = new FrameworkView();
         frameworkView.Initialize(coreApplicationView);
         frameworkView.SetWindow(coreWindow);
 
         var hwndCoreWindow = new HWND(coreWindow.As<ICoreWindowInterop>().WindowHandle);
         SetParent(hwndCoreWindow, hwnd);
-        SetWindowLongPtr(hwndCoreWindow, WINDOW_LONG_PTR_INDEX.GWL_STYLE, (nint)(WS_CHILD | WS_VISIBLE));
-        SetFocus(hwndCoreWindow);
+        SetWindowLong(hwndCoreWindow, WINDOW_LONG_PTR_INDEX.GWL_STYLE, (int)(WS_CHILD | WS_VISIBLE));
 
         return new LRESULT(0);
     }
@@ -135,11 +123,19 @@ static class Program
             case WM_DESTROY:
                 PostQuitMessage(0);
                 return new LRESULT(0);
+            case WM_ACTIVATE:
+                var hwndCoreWindow = new HWND(coreWindow.As<ICoreWindowInterop>().WindowHandle);
+                SendMessage(hwndCoreWindow, msg, wParam, lPARAM);
+                return new LRESULT(0);
             default:
                 return DefWindowProc(hwnd, msg, wParam, lPARAM);
         }
     }
-    
+    public static T With<T>(this T el, Action<T> action) where T : UIElement
+    {
+        action(el);
+        return el;
+    }
     public unsafe static void Main(string[] args)
     {
         var app = new App();
@@ -172,47 +168,47 @@ static class Program
 
         ShowWindow(hwnd, SHOW_WINDOW_CMD.SW_NORMAL);
 
-        var navigationView = new NavigationView();
-        var textBlock = new TextBlock
+        var content = new NavigationView
         {
-            Text = "Hello world"
-        };
-        var stackPanel = new StackPanel
-        {
-            Orientation = Orientation.Vertical
-        };
-        var slider = new Slider
-        {
-            Minimum = 0,
-            Maximum = 100
-        };
-        var btn = new Button { Content = "Click Me" };
-        btn.Click += (s, e) =>
-        {
-            var dialog = new ContentDialog
+            Content = new ScrollViewer
             {
-                Content = new StackPanel
+                Content =  new StackPanel
                 {
+                    Orientation = Orientation.Vertical,
+                    Padding = new Thickness(24, 24, 24, 24),
+                    Spacing = 8,
                     Children =
                     {
-                        new TextBlock {Text = "ContentDialog test"},
+                        new TextBlock { Text = "Hello world" },
+                        new Slider { Minimum = 0, Maximum = 100 },
                         new TextBox(),
-                        new Slider { Minimum = 0, Maximum = 100}
+                        new Button() { Content = "Click Me" }.With(btn =>
+                        {
+                            btn.Click += (s, e) => {
+                                var dialog = new ContentDialog
+                                {
+                                    Content = new StackPanel
+                                    {
+                                        Children =
+                                        {
+                                            new TextBlock { Text = "ContentDialog test" },
+                                            new TextBox(),
+                                            new Slider { Minimum = 0, Maximum = 100 }
+                                        }
+                                    },
+                                    PrimaryButtonText = "OK"
+                                };
+                                _ = dialog.ShowAsync();
+                            };
+                        }),
+                        new ColorPicker(),
+                        new CalendarView(),
                     }
-                },
-                PrimaryButtonText = "OK"
-            };
-            _ = dialog.ShowAsync();
+                }
+            }
         };
-        stackPanel.Children.Add(textBlock);
-        stackPanel.Children.Add(slider);
-        stackPanel.Children.Add(new TextBox());
-        stackPanel.Children.Add(btn);
-        stackPanel.Children.Add(new CalendarDatePicker());
-        navigationView.Content = stackPanel;
-        Window.Current.Content = navigationView;
+        Window.Current.Content = content;
 
-        
 
         frameworkView?.Run();
     }

@@ -8,9 +8,10 @@ TranslateMessage
 DispatchMessage
 DefWindowProc
 PostQuitMessage
-SetWindowLongPtr
+SetWindowLong
 SetParent
 SetFocus
+SendMessage
 
 SYS_COLOR_INDEX
 CW_USEDEFAULT
@@ -18,6 +19,7 @@ WM_CREATE
 WM_SIZE
 WM_DPICHANGED
 WM_DESTROY
+WM_ACTIVATE
 CREATESTRUCTW
 RECT
 
