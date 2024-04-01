@@ -2,9 +2,7 @@
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
 using System.Linq;
-using Windows.ApplicationModel.Activation;
 using Windows.ApplicationModel.Core;
-using Windows.Foundation;
 using Windows.UI.Core;
 using Windows.UI.Xaml;
 using Windows.UI.Xaml.Controls;
@@ -12,13 +10,14 @@ using Windows.UI.Xaml.Markup;
 using Windows.Win32.Foundation;
 using Windows.Win32.Graphics.Gdi;
 using Windows.Win32.System.WinRT;
+using Windows.Win32.UI.Controls;
 using Windows.Win32.UI.WindowsAndMessaging;
 using WinRT;
-using static Windows.Win32.Graphics.Gdi.SYS_COLOR_INDEX;
 using static Windows.Win32.PInvoke;
 using static Windows.Win32.UI.WindowsAndMessaging.SET_WINDOW_POS_FLAGS;
 using static Windows.Win32.UI.WindowsAndMessaging.WINDOW_STYLE;
 using static XamlApp.NativeMethods;
+using Windows.Win32.Graphics.Dwm;
 
 namespace XamlApp;
 
@@ -90,6 +89,7 @@ static class Program
         var hwndCoreWindow = new HWND(coreWindow.As<ICoreWindowInterop>().WindowHandle);
         SetParent(hwndCoreWindow, hwnd);
         SetWindowLong(hwndCoreWindow, WINDOW_LONG_PTR_INDEX.GWL_STYLE, (int)(WS_CHILD | WS_VISIBLE));
+        SetWindowPos(hwnd, HWND.Null, 0, 0, 0, 0, SWP_NOSIZE | SWP_NOMOVE | SWP_FRAMECHANGED);
 
         return new LRESULT(0);
     }
@@ -98,7 +98,7 @@ static class Program
         if (coreWindow != null)
         {
             var hwndCoreWindow = new HWND(coreWindow.As<ICoreWindowInterop>().WindowHandle);
-            SetWindowPos(hwndCoreWindow, HWND.Null, 0, 0, clientWidth, clientHeight, SWP_NOMOVE | SWP_NOZORDER);
+            SetWindowPos(hwndCoreWindow, HWND.Null, 0, 0, clientWidth, clientHeight, SWP_NOZORDER);
         }
         return new LRESULT(0);
     }
@@ -109,26 +109,49 @@ static class Program
             SWP_NOZORDER | SWP_NOACTIVATE);
         return new LRESULT(0);
     }
-    public static LRESULT WndProc(HWND hwnd, uint msg, WPARAM wParam, LPARAM lPARAM)
+    public unsafe static LRESULT OnActivate(HWND hwnd, WPARAM wParam, LPARAM lParam)
     {
+        var margins = new MARGINS
+        {
+            cxLeftWidth = -1,
+            cxRightWidth = -1,
+            cyTopHeight = -1,
+            cyBottomHeight = -1
+        };
+        DwmExtendFrameIntoClientArea(hwnd, margins);
+
+        DWM_SYSTEMBACKDROP_TYPE* type = stackalloc DWM_SYSTEMBACKDROP_TYPE[] { DWM_SYSTEMBACKDROP_TYPE.DWMSBT_MAINWINDOW };
+        DwmSetWindowAttribute(hwnd, DWMWINDOWATTRIBUTE.DWMWA_SYSTEMBACKDROP_TYPE, type, (uint)Marshal.SizeOf<int>());
+
+        WTA_OPTIONS options = new()
+    {
+            dwMask = WTNCA_NODRAWCAPTION | WTNCA_NODRAWICON,
+            dwFlags = WTNCA_NODRAWCAPTION | WTNCA_NODRAWICON
+        };
+        SetWindowThemeAttribute(hwnd, WINDOWTHEMEATTRIBUTETYPE.WTA_NONCLIENT, &options, (uint)Marshal.SizeOf<WTA_OPTIONS>());
         
+        var hwndCoreWindow = new HWND(coreWindow.As<ICoreWindowInterop>().WindowHandle);
+        SendMessage(hwndCoreWindow, WM_ACTIVATE, wParam, lParam);
+
+        return new LRESULT(0);
+    }
+    public static LRESULT WndProc(HWND hwnd, uint msg, WPARAM wParam, LPARAM lParam)
+    {
         switch (msg)
         {
             case WM_CREATE:
-                return OnCreate(hwnd, Marshal.PtrToStructure<CREATESTRUCTW>(lPARAM));
+                return OnCreate(hwnd, Marshal.PtrToStructure<CREATESTRUCTW>(lParam));
             case WM_SIZE:
-                return OnResize(hwnd, wParam.Value, (int)(lPARAM.Value & 0xffff), (int)((lPARAM.Value >> 16) & 0xffff));
+                return OnResize(hwnd, wParam.Value, (int)(lParam.Value & 0xffff), (int)((lParam.Value >> 16) & 0xffff));
             case WM_DPICHANGED:
-                return OnDpiChanged(hwnd, wParam.Value & 0xffff, Marshal.PtrToStructure<RECT>(lPARAM));
+                return OnDpiChanged(hwnd, wParam.Value & 0xffff, Marshal.PtrToStructure<RECT>(lParam));
             case WM_DESTROY:
                 PostQuitMessage(0);
                 return new LRESULT(0);
             case WM_ACTIVATE:
-                var hwndCoreWindow = new HWND(coreWindow.As<ICoreWindowInterop>().WindowHandle);
-                SendMessage(hwndCoreWindow, msg, wParam, lPARAM);
-                return new LRESULT(0);
+                return OnActivate(hwnd, wParam, lParam);
             default:
-                return DefWindowProc(hwnd, msg, wParam, lPARAM);
+                return DefWindowProc(hwnd, msg, wParam, lParam);               
         }
     }
     public static T With<T>(this T el, Action<T> action) where T : UIElement
@@ -152,7 +175,7 @@ static class Program
             hInstance = hInstance,
             hIcon = HICON.Null,
             hCursor = HCURSOR.Null,
-            hbrBackground = new HBRUSH((nint)(COLOR_WINDOW + 1)),
+            hbrBackground = new HBRUSH(GetStockObject(GET_STOCK_OBJECT_FLAGS.BLACK_BRUSH)),
             lpszMenuName = null,
             lpszClassName = className
         };
