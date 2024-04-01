@@ -34,3 +34,4 @@ WTNCA_NODRAWICON
 WTA_OPTIONS
 
 ICoreWindowInterop
+IDesktopWindowXamlSourceNative

@@ -1,43 +1,41 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Runtime.InteropServices;
 using System.Linq;
-using Windows.ApplicationModel.Core;
-using Windows.UI.Core;
+using System.Runtime.InteropServices;
+using Windows.Foundation;
 using Windows.UI.Xaml;
 using Windows.UI.Xaml.Controls;
+using Windows.UI.Xaml.Hosting;
 using Windows.UI.Xaml.Markup;
 using Windows.Win32.Foundation;
+using Windows.Win32.Graphics.Dwm;
 using Windows.Win32.Graphics.Gdi;
-using Windows.Win32.System.WinRT;
+using Windows.Win32.System.WinRT.Xaml;
 using Windows.Win32.UI.Controls;
 using Windows.Win32.UI.WindowsAndMessaging;
 using WinRT;
 using static Windows.Win32.PInvoke;
 using static Windows.Win32.UI.WindowsAndMessaging.SET_WINDOW_POS_FLAGS;
 using static Windows.Win32.UI.WindowsAndMessaging.WINDOW_STYLE;
-using static XamlApp.NativeMethods;
-using Windows.Win32.Graphics.Dwm;
 
 namespace XamlApp;
 
-static partial class NativeMethods
+[ComImport]
+[Guid("06636C29-5A17-458D-8EA2-2422D997A922")]
+[InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+public interface IWindowPrivate
 {
-    public enum CoreWindowType : int
-    {
-        IMMERSIVE_BODY = 0,
-        IMMERSIVE_DOCK,
-        IMMERSIVE_HOSTED,
-        IMMERSIVE_TEST,
-        IMMERSIVE_BODY_ACTIVE,
-        IMMERSIVE_DOCK_ACTIVE,
-        NOT_IMMERSIVE
-    }
-
-    [LibraryImport("windows.ui.dll", EntryPoint = "#1500", StringMarshalling = StringMarshalling.Utf16)]
-    public static partial int PrivateCreateCoreWindow(CoreWindowType windowType, string windowTitle,
-        int x, int y, uint width, uint height,
-        uint dwAttributes, nint hOwnerWindow, in Guid riid, out nint pWindow);
+    void GetIids(out int iidCount, out IntPtr iids);
+    void GetRuntimeClassName(out IntPtr className);
+    void GetTrustLevel(out TrustLevel trustLevel);
+    bool TransparentBackground { get; set; }
+    void Show();
+    void Hide();
+    void MoveWindow(int x, int y, int width, int height);
+    void SetAtlasSizeHint(uint width, uint height);
+    void ReleaseGraphicsDeviceOnSuspend(bool enable);
+    void SetAtlasRequestCallback(nint callback);
+    Rect GetWindowContentBoundsForElement(nint element);
 }
 
 public class App : Application, IXamlMetadataProvider
@@ -72,33 +70,37 @@ public class App : Application, IXamlMetadataProvider
 
 static class Program
 {
-    private static CoreWindow? coreWindow;
-    private static FrameworkView? frameworkView;
+    private static DesktopWindowXamlSource? xamlSource;
     public static LRESULT OnCreate(HWND hwnd, CREATESTRUCTW cs)
     {
-        var hr = PrivateCreateCoreWindow(CoreWindowType.IMMERSIVE_HOSTED, "", 0, 0, 0, 0, 0, hwnd.Value, typeof(ICoreWindow).GUID, out _);
-        ExceptionHelpers.ThrowExceptionForHR(hr);
+        xamlSource = new DesktopWindowXamlSource();
+        var xamlSourceNative = xamlSource?.As<IDesktopWindowXamlSourceNative>();
+        xamlSourceNative?.AttachToWindow(hwnd);
 
-        var coreApplicationView = CoreApplication.As<ICoreApplicationPrivate2>().CreateNonImmersiveView();
+        if (xamlSource != null)
+        {
+            xamlSource.TakeFocusRequested += (s, e) =>
+            {
+                s.NavigateFocus(e.Request);
+            };
+        }
 
-        coreWindow = CoreWindow.GetForCurrentThread();
-        frameworkView = new FrameworkView();
-        frameworkView.Initialize(coreApplicationView);
-        frameworkView.SetWindow(coreWindow);
+        Window.Current.As<IWindowPrivate>().TransparentBackground = true;
 
-        var hwndCoreWindow = new HWND(coreWindow.As<ICoreWindowInterop>().WindowHandle);
-        SetParent(hwndCoreWindow, hwnd);
-        SetWindowLong(hwndCoreWindow, WINDOW_LONG_PTR_INDEX.GWL_STYLE, (int)(WS_CHILD | WS_VISIBLE));
+        var hwndXamlSource = xamlSourceNative?.WindowHandle ?? HWND.Null;
+        SetParent(hwndXamlSource, hwnd);
+        SetWindowLong(hwndXamlSource, WINDOW_LONG_PTR_INDEX.GWL_STYLE, (int)(WS_CHILD | WS_VISIBLE));
         SetWindowPos(hwnd, HWND.Null, 0, 0, 0, 0, SWP_NOSIZE | SWP_NOMOVE | SWP_FRAMECHANGED);
+        SetFocus(hwndXamlSource);
 
         return new LRESULT(0);
     }
     public static LRESULT OnResize(HWND hwnd, nuint sizeType, int clientWidth, int clientHeight)
     {
-        if (coreWindow != null)
+        if (xamlSource != null)
         {
-            var hwndCoreWindow = new HWND(coreWindow.As<ICoreWindowInterop>().WindowHandle);
-            SetWindowPos(hwndCoreWindow, HWND.Null, 0, 0, clientWidth, clientHeight, SWP_NOZORDER);
+            var hwndXamlSource = xamlSource.As<IDesktopWindowXamlSourceNative>().WindowHandle;
+            SetWindowPos(hwndXamlSource, HWND.Null, 0, 0, clientWidth, clientHeight, SWP_NOZORDER);
         }
         return new LRESULT(0);
     }
@@ -124,14 +126,11 @@ static class Program
         DwmSetWindowAttribute(hwnd, DWMWINDOWATTRIBUTE.DWMWA_SYSTEMBACKDROP_TYPE, type, (uint)Marshal.SizeOf<int>());
 
         WTA_OPTIONS options = new()
-    {
+        {
             dwMask = WTNCA_NODRAWCAPTION | WTNCA_NODRAWICON,
             dwFlags = WTNCA_NODRAWCAPTION | WTNCA_NODRAWICON
         };
         SetWindowThemeAttribute(hwnd, WINDOWTHEMEATTRIBUTETYPE.WTA_NONCLIENT, &options, (uint)Marshal.SizeOf<WTA_OPTIONS>());
-        
-        var hwndCoreWindow = new HWND(coreWindow.As<ICoreWindowInterop>().WindowHandle);
-        SendMessage(hwndCoreWindow, WM_ACTIVATE, wParam, lParam);
 
         return new LRESULT(0);
     }
@@ -219,7 +218,8 @@ static class Program
                                             new Slider { Minimum = 0, Maximum = 100 }
                                         }
                                     },
-                                    PrimaryButtonText = "OK"
+                                    PrimaryButtonText = "OK",
+                                    XamlRoot = btn.XamlRoot
                                 };
                                 _ = dialog.ShowAsync();
                             };
@@ -230,9 +230,19 @@ static class Program
                 }
             }
         };
-        Window.Current.Content = content;
+        if (xamlSource != null)
+        {
+            xamlSource.Content = content;
+        }
 
-
-        frameworkView?.Run();
+        BOOL ret;
+        while ((ret = GetMessage(out var msg, HWND.Null, 0, 0)) != 0)
+        {
+            if (ret != -1)
+            {
+                TranslateMessage(msg);
+                DispatchMessage(msg);
+            }
+        }
     }
 }
