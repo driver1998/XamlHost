@@ -38,6 +38,10 @@ static partial class NativeMethods
     public static partial int PrivateCreateCoreWindow(CoreWindowType windowType, string windowTitle,
         int x, int y, uint width, uint height,
         uint dwAttributes, nint hOwnerWindow, in Guid riid, out nint pWindow);
+
+
+    [DllImport("windows.ui.core.textinput.dll", EntryPoint = "#1500")]
+    public static extern int CreateTextInputProducer(nint consumer, out nint pProducer);
 }
 
 public class App : Application, IXamlMetadataProvider
@@ -70,6 +74,43 @@ public class App : Application, IXamlMetadataProvider
     private List<IXamlMetadataProvider> _providers = new();
 }
 
+[ComImport]
+[InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+[Guid("954460a2-2cf6-4a32-a6c2-26a34c888804")]
+interface ITextInputProducer
+{
+    void GetIids(out int iidCount, out IntPtr iids);
+    void GetRuntimeClassName(out IntPtr className);
+    void GetTrustLevel(out TrustLevel trustLevel);
+    bool IsInputEnabled { get; set; }
+    bool HasFocus { get; set; }
+    bool MessageHandled { get; }
+    int CurrentKeyEventType { get; }
+    CoreVirtualKeyStates GetAsyncKeyState(Windows.System.VirtualKey key);
+    CoreVirtualKeyStates GetKeyState(Windows.System.VirtualKey key);
+    nint GetCurrentKeyEventDeviceId();
+};
+
+[ComImport]
+[InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+[Guid("a9d00ab3-2fef-41a0-b0ad-4b2129ea2663")]
+interface ITextInputConsumer
+{
+    void GetIids(out int iidCount, out IntPtr iids);
+    void GetRuntimeClassName(out IntPtr className);
+    void GetTrustLevel(out TrustLevel trustLevel);
+    ITextInputProducer TextInputProducer { get; set; }
+    void InvokeAcceleratorKeyEventHandlers();
+    void InvokeKeyDownEventHandlers();
+    void InvokeKeyUpEventHandlers();
+    void InvokeCharacterReceivedEventHandlers();
+    void InvokeSystemKeyDownEventHandlers();
+    void InvokeSystemKeyUpEventHandlers();
+    void InvokeNavigationFocusEventHandlers();
+    void OnTextInputProducerFocusChanged();
+    void OnEnableNonCUIDepartFocus();
+}
+
 static class Program
 {
     private static CoreWindow? coreWindow;
@@ -87,6 +128,12 @@ static class Program
         frameworkView.SetWindow(coreWindow);
 
         var hwndCoreWindow = new HWND(coreWindow.As<ICoreWindowInterop>().WindowHandle);
+        var consumer = coreWindow.As<ITextInputConsumer>();
+        var ptrConsumer = Marshal.GetComInterfaceForObject(consumer, typeof(ITextInputConsumer));
+        Marshal.ThrowExceptionForHR(CreateTextInputProducer(ptrConsumer, out var ptrProducer));
+        var producer = (ITextInputProducer)Marshal.GetTypedObjectForIUnknown(ptrProducer, typeof(ITextInputProducer));
+        consumer.TextInputProducer = producer;
+
         SetParent(hwndCoreWindow, hwnd);
         SetWindowLong(hwndCoreWindow, WINDOW_LONG_PTR_INDEX.GWL_STYLE, (int)(WS_CHILD | WS_VISIBLE));
         SetWindowPos(hwnd, HWND.Null, 0, 0, 0, 0, SWP_NOSIZE | SWP_NOMOVE | SWP_FRAMECHANGED);
@@ -124,12 +171,12 @@ static class Program
         DwmSetWindowAttribute(hwnd, DWMWINDOWATTRIBUTE.DWMWA_SYSTEMBACKDROP_TYPE, type, (uint)Marshal.SizeOf<int>());
 
         WTA_OPTIONS options = new()
-    {
+        {
             dwMask = WTNCA_NODRAWCAPTION | WTNCA_NODRAWICON,
             dwFlags = WTNCA_NODRAWCAPTION | WTNCA_NODRAWICON
-        };
+        };        
         SetWindowThemeAttribute(hwnd, WINDOWTHEMEATTRIBUTETYPE.WTA_NONCLIENT, &options, (uint)Marshal.SizeOf<WTA_OPTIONS>());
-        
+
         var hwndCoreWindow = new HWND(coreWindow.As<ICoreWindowInterop>().WindowHandle);
         SendMessage(hwndCoreWindow, WM_ACTIVATE, wParam, lParam);
 
