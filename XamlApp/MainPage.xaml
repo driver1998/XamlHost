@@ -1,0 +1,23 @@
+﻿<Page
+    x:Class="XamlApp.MainPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:local="using:XamlApp"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    mc:Ignorable="d"
+    Background="Transparent">
+
+    <NavigationView>
+        <ScrollViewer>
+            <StackPanel Orientation="Vertical" Padding="24, 24, 24, 24" Spacing="8">
+                <TextBlock>Hello world</TextBlock>
+                <Slider Minimum="0" Maximum="100"></Slider>
+                <TextBox></TextBox>
+                <Button Click="Button_Click">Click Me</Button>
+                <ColorPicker></ColorPicker>
+                <CalendarView></CalendarView>
+            </StackPanel>
+        </ScrollViewer>
+    </NavigationView>
+</Page>
